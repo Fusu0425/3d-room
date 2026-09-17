@@ -396,7 +396,7 @@ function drawWrappedText(context, text, x, y, maxWidth, lineHeight, maxLines) {
   return y + lines * lineHeight
 }
 
-function WhiteboardArtwork({ content }) {
+function WhiteboardArtwork({ content, compact }) {
   const [logoImage, setLogoImage] = useState(null)
 
   useEffect(() => {
@@ -409,9 +409,9 @@ function WhiteboardArtwork({ content }) {
 
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas')
-    const textureScale = 2
-    canvas.width = 3072
-    canvas.height = 1536
+    const textureScale = compact ? 4 / 3 : 2
+    canvas.width = compact ? 2048 : 3072
+    canvas.height = compact ? 1024 : 1536
     const context = canvas.getContext('2d')
     context.scale(textureScale, textureScale)
     context.imageSmoothingEnabled = true
@@ -485,12 +485,12 @@ function WhiteboardArtwork({ content }) {
 
     const nextTexture = new THREE.CanvasTexture(canvas)
     nextTexture.colorSpace = THREE.SRGBColorSpace
-    nextTexture.anisotropy = 16
-    nextTexture.generateMipmaps = true
-    nextTexture.minFilter = THREE.LinearMipmapLinearFilter
+    nextTexture.anisotropy = compact ? 4 : 16
+    nextTexture.generateMipmaps = !compact
+    nextTexture.minFilter = compact ? THREE.LinearFilter : THREE.LinearMipmapLinearFilter
     nextTexture.magFilter = THREE.LinearFilter
     return nextTexture
-  }, [content.keywords, content.lead, content.motto, content.signature, content.story, content.title, logoImage])
+  }, [compact, content.keywords, content.lead, content.motto, content.signature, content.story, content.title, logoImage])
 
   useEffect(() => () => texture.dispose(), [texture])
 
@@ -655,12 +655,12 @@ function CanvasArtwork({ kind, title, subtitle }) {
   )
 }
 
-function Whiteboard({ onSelect, content }) {
+function Whiteboard({ onSelect, content, compact }) {
   return (
     <Interactive id="whiteboard" label="关于这间房" onSelect={onSelect} position={[-1.65, 2.35, -3.02]} hitbox={[2.3, 1.25, 0.16]} labelOffset={[0, 0.85, 0]}>
       {(hovered) => (
         <WallCard width={2.18} height={1.12} color={hovered ? '#fffdfa' : '#f8f6f1'} border="#6f6e69">
-          <WhiteboardArtwork content={content} />
+          <WhiteboardArtwork content={content} compact={compact} />
         </WallCard>
       )}
     </Interactive>
@@ -1246,7 +1246,7 @@ function Plant({ position, scale = 1 }) {
   )
 }
 
-function BookVolume({ book, width, height, hovered }) {
+function BookVolume({ book, width, height, hovered, compact }) {
   const [coverImage, setCoverImage] = useState(null)
 
   useEffect(() => {
@@ -1263,10 +1263,11 @@ function BookVolume({ book, width, height, hovered }) {
 
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas')
-    canvas.width = 1024
-    canvas.height = 3072
+    const textureScale = compact ? 1 : 2
+    canvas.width = 512 * textureScale
+    canvas.height = 1536 * textureScale
     const context = canvas.getContext('2d')
-    context.scale(2, 2)
+    context.scale(textureScale, textureScale)
     const palette = book.spine || { base: book.color, ink: indexTextColor(book.color), accent: '#c7ac78' }
     context.fillStyle = palette.base
     context.fillRect(0, 0, 512, 1536)
@@ -1305,18 +1306,18 @@ function BookVolume({ book, width, height, hovered }) {
     context.font = '500 30px "Microsoft YaHei", sans-serif'
     context.globalAlpha = 0.78
     const author = book.author.replace(/【.*?】/g, '').slice(0, 12)
-    context.fillText(author, canvas.width / 2 + 14, canvas.height - 210)
+    context.fillText(author, 270, 1326)
     context.globalAlpha = 1
     context.font = '600 24px Georgia, serif'
-    context.fillText(book.confirmed ? book.eyebrow.replace('READING · ', 'BOOK ') : 'TO BE CHOSEN', canvas.width / 2 + 14, 165)
+    context.fillText(book.confirmed ? book.eyebrow.replace('READING · ', 'BOOK ') : 'TO BE CHOSEN', 270, 165)
     const nextTexture = new THREE.CanvasTexture(canvas)
     nextTexture.colorSpace = THREE.SRGBColorSpace
-    nextTexture.anisotropy = 16
-    nextTexture.generateMipmaps = true
-    nextTexture.minFilter = THREE.LinearMipmapLinearFilter
+    nextTexture.anisotropy = compact ? 4 : 16
+    nextTexture.generateMipmaps = !compact
+    nextTexture.minFilter = compact ? THREE.LinearFilter : THREE.LinearMipmapLinearFilter
     nextTexture.magFilter = THREE.LinearFilter
     return nextTexture
-  }, [book, coverImage])
+  }, [book, compact, coverImage])
 
   useEffect(() => () => texture.dispose(), [texture])
 
@@ -1351,7 +1352,7 @@ function Bookshelf({ onSelect, selectedId, compact }) {
         const width = 0.12 + (index % 2) * 0.025
         return (
           <Interactive key={book.id} id={book.id} label={book.label} onSelect={selectBook} position={[-0.73 + index * 0.16, 0.22 + height / 2, 0.3]} hitbox={[Math.max(width + 0.04, compact ? 0.19 : 0), height + 0.06, 0.42]} labelOffset={[0, 0, 0.42]}>
-            {(hovered) => <BookVolume book={book} width={width} height={height} hovered={hovered} />}
+            {(hovered) => <BookVolume book={book} width={width} height={height} hovered={hovered} compact={compact} />}
           </Interactive>
         )
       })}
@@ -1491,22 +1492,34 @@ function ProceduralShoeFallback({ index }) {
   )
 }
 
-function RunningShoeModel({ index }) {
+function RunningShoeModel({ index, compact }) {
   const { scene } = useGLTF(publicAsset('assets/models/running-shoe.glb'))
   const prepared = useMemo(() => {
     const clone = scene.clone(true)
+    const mobileMaterials = []
     clone.traverse((object) => {
       if (object.isMesh) {
         object.castShadow = false
         object.receiveShadow = false
+        if (compact) {
+          const material = new THREE.MeshStandardMaterial({
+            color: index ? '#d8dedc' : '#e7e2d9',
+            roughness: 0.58,
+            metalness: 0.02,
+          })
+          object.material = material
+          mobileMaterials.push(material)
+        }
       }
     })
     const bounds = new THREE.Box3().setFromObject(clone)
     const center = bounds.getCenter(new THREE.Vector3())
     const size = bounds.getSize(new THREE.Vector3())
     clone.position.sub(center)
-    return { clone, scale: 0.72 / Math.max(size.x, size.y, size.z) }
-  }, [scene])
+    return { clone, mobileMaterials, scale: 0.72 / Math.max(size.x, size.y, size.z) }
+  }, [compact, index, scene])
+
+  useEffect(() => () => prepared.mobileMaterials.forEach((material) => material.dispose()), [prepared])
 
   return (
     <group rotation={[0, index ? -0.16 : 0.12, 0]}>
@@ -1515,11 +1528,11 @@ function RunningShoeModel({ index }) {
   )
 }
 
-function RunningShoe({ x, index }) {
+function RunningShoe({ x, index, compact }) {
   return (
     <group position={[x, 0.18, index * 0.13]}>
       <Suspense fallback={<ProceduralShoeFallback index={index} />}>
-        <RunningShoeModel index={index} />
+        <RunningShoeModel index={index} compact={compact} />
       </Suspense>
     </group>
   )
@@ -1566,10 +1579,10 @@ function Shuttlecock({ position, rotation = [0, 0, 0] }) {
   )
 }
 
-function ShoesAndShuttles() {
+function ShoesAndShuttles({ compact }) {
   return (
     <group position={[3.15, 0.08, -0.72]}>
-      {[-0.22, 0.23].map((x, index) => <RunningShoe key={x} x={x} index={index} />)}
+      {[-0.22, 0.23].map((x, index) => <RunningShoe key={x} x={x} index={index} compact={compact} />)}
       <Shuttlecock position={[-0.58, 0.06, 0.34]} rotation={[0.08, 0, -0.26]} />
       <Shuttlecock position={[-0.83, 0.08, 0.18]} rotation={[0.02, 0.42, 0.18]} />
     </group>
@@ -1638,7 +1651,7 @@ const StaticRoom = memo(function StaticRoom({ onSelect, selectedId, compact }) {
       <Bookshelf onSelect={onSelect} selectedId={selectedId} compact={compact} />
       <Treadmill onSelect={onSelect} />
       <BadmintonWall onSelect={onSelect} />
-      <ShoesAndShuttles />
+      <ShoesAndShuttles compact={compact} />
     </>
   )
 })
@@ -1649,7 +1662,7 @@ function RoomScene({ selectedId, onSelect, resetToken, onReady, isMusicPlaying, 
   return (
     <>
       <StaticRoom onSelect={onSelect} selectedId={selectedId} compact={compact} />
-      <Whiteboard onSelect={onSelect} content={whiteboardContent} />
+      <Whiteboard onSelect={onSelect} content={whiteboardContent} compact={compact} />
       <StableRecordPlayer onSelect={onSelect} playing={isMusicPlaying && !selectedId} />
 
       <CameraRig selectedId={selectedId} resetToken={resetToken} />
