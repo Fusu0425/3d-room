@@ -1379,7 +1379,7 @@ function MobileWhiteboardReader({ content, onEdit, onClose, showcaseMode }) {
     >
       <header>
         <div><span>ABOUT THIS ROOM</span><strong>白板近景</strong></div>
-        <button onClick={onClose} aria-label="返回房间">×</button>
+        <button onClick={onClose} aria-label="返回实体白板">×</button>
       </header>
       <div className="mobile-whiteboard-content">
         <div className="mobile-whiteboard-copy">
@@ -1395,9 +1395,26 @@ function MobileWhiteboardReader({ content, onEdit, onClose, showcaseMode }) {
       <footer>
         <span>{showcaseMode ? '访客阅读模式' : '文字与图片会同步保存到这台设备'}</span>
         {!showcaseMode && <button onClick={onEdit}>编辑白板</button>}
-        <button onClick={onClose}>返回房间</button>
+        <button onClick={onClose}>返回白板</button>
       </footer>
     </motion.section>
+  )
+}
+
+function MobileWhiteboardFocusTools({ onRead, onEdit, onClose, showcaseMode }) {
+  return (
+    <motion.div
+      className="mobile-whiteboard-focus-tools"
+      initial={{ opacity: 0, x: '-50%', y: 14 }}
+      animate={{ opacity: 1, x: '-50%', y: 0 }}
+      exit={{ opacity: 0, x: '-50%', y: 10 }}
+      aria-label="白板实体近景控制"
+    >
+      <span><b>实体白板</b><small>双指可继续缩放查看</small></span>
+      <button className="primary" onClick={onRead}>高清阅读</button>
+      {!showcaseMode && <button onClick={onEdit}>编辑</button>}
+      <button onClick={onClose}>返回</button>
+    </motion.div>
   )
 }
 
@@ -1915,13 +1932,14 @@ function GameTheatre({ kind, onClose }) {
 
 function DetailPanel({ item, onClose, onSelectBook, isEditMode, onToggleEdit, music, whiteboardContent, onWhiteboardChange, sportContent, onSportChange, showcaseMode }) {
   const [ready, setReady] = useState(false)
+  const [mobileWhiteboardView, setMobileWhiteboardView] = useState('focus')
+  const compact = window.matchMedia('(max-width: 720px)').matches
 
   useEffect(() => {
-    const compact = window.matchMedia('(max-width: 720px)').matches
     const delay = compact ? (item.type === 'book' ? 360 : 430) : (item.type === 'book' ? 620 : 720)
     const timer = window.setTimeout(() => setReady(true), delay)
     return () => window.clearTimeout(timer)
-  }, [item.id])
+  }, [compact, item.id, item.type])
 
   useEffect(() => {
     const handleKey = (event) => event.key === 'Escape' && onClose()
@@ -1947,12 +1965,15 @@ function DetailPanel({ item, onClose, onSelectBook, isEditMode, onToggleEdit, mu
         ) : item.id === 'eldenRing' || item.id === 'expedition33' ? (
           <GameTheatre kind={item.id} onClose={onClose} />
         ) : item.id === 'whiteboard' ? (
-          isEditMode
+          compact ? (
+            mobileWhiteboardView === 'reader'
+              ? <MobileWhiteboardReader content={whiteboardContent} onEdit={() => setMobileWhiteboardView('edit')} onClose={() => setMobileWhiteboardView('focus')} showcaseMode={showcaseMode} />
+              : mobileWhiteboardView === 'edit'
+                ? <WhiteboardStory content={whiteboardContent} onChange={onWhiteboardChange} onToggleEdit={() => setMobileWhiteboardView('focus')} onClose={onClose} />
+                : <MobileWhiteboardFocusTools onRead={() => setMobileWhiteboardView('reader')} onEdit={() => setMobileWhiteboardView('edit')} onClose={onClose} showcaseMode={showcaseMode} />
+          ) : isEditMode
             ? <WhiteboardStory content={whiteboardContent} onChange={onWhiteboardChange} onToggleEdit={onToggleEdit} onClose={onClose} />
-            : <>
-                <MobileWhiteboardReader content={whiteboardContent} onEdit={onToggleEdit} onClose={onClose} showcaseMode={showcaseMode} />
-                <WhiteboardFocusTools onEdit={onToggleEdit} onClose={onClose} showcaseMode={showcaseMode} />
-              </>
+            : <WhiteboardFocusTools onEdit={onToggleEdit} onClose={onClose} showcaseMode={showcaseMode} />
         ) : <motion.div className="detail-shell" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <motion.aside
             className="detail-panel"

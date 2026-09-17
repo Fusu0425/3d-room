@@ -607,6 +607,7 @@ button { font: inherit; }
 .whiteboard-focus-tools button:hover, .whiteboard-logo-editor button:hover, .whiteboard-editor-actions button:hover { border-color: #9e87ac; background: #fff; }
 
 .mobile-whiteboard-reader { display: none; }
+.mobile-whiteboard-focus-tools { display: none; }
 
 .shelf-focus-panel {
   position: fixed; z-index: 46; left: 50%; bottom: 24px; width: min(920px, calc(100vw - 48px));
@@ -913,6 +914,21 @@ button { font: inherit; }
   .mobile-whiteboard-reader > footer span { min-width: 0; margin-right: auto; color: #93887c; font-size: 8px; line-height: 1.4; }
   .mobile-whiteboard-reader > footer button { min-height: 34px; padding: 7px 10px; }
   .whiteboard-focus-tools { display: none; }
+  .mobile-whiteboard-focus-tools {
+    position: fixed; z-index: 46; left: 50%; bottom: max(66px, calc(env(safe-area-inset-bottom) + 54px));
+    width: calc(100vw - 20px); display: flex; align-items: center; gap: 6px; padding: 9px 9px 9px 13px;
+    transform: translateX(-50%); pointer-events: auto; cursor: default; border: 1px solid rgba(255,255,255,.86);
+    border-radius: 16px; color: #635a51; background: rgba(248,244,237,.92); box-shadow: 0 14px 38px rgba(42,35,29,.19);
+    backdrop-filter: blur(12px);
+  }
+  .mobile-whiteboard-focus-tools span { min-width: 0; margin-right: auto; display: grid; gap: 3px; }
+  .mobile-whiteboard-focus-tools b { font-size: 10px; font-weight: 600; }
+  .mobile-whiteboard-focus-tools small { color: #94887c; font-size: 7px; white-space: nowrap; }
+  .mobile-whiteboard-focus-tools button {
+    flex: 0 0 auto; min-height: 34px; padding: 7px 9px; border: 1px solid #d7cfc3; border-radius: 999px;
+    color: #685f56; background: rgba(255,255,255,.78); font-size: 8px;
+  }
+  .mobile-whiteboard-focus-tools button.primary { border-color: #876a98; color: #fff; background: #76578b; }
   .intro-sequence > strong { font-size: 34px; }
   .room-header { left: max(16px, env(safe-area-inset-left)); top: max(16px, env(safe-area-inset-top)); transform: scale(.86); transform-origin: left top; }
   .room-mini-player { left: max(14px, env(safe-area-inset-left)); top: calc(max(16px, env(safe-area-inset-top)) + 48px); width: min(330px, calc(100vw - 28px)); padding: 11px 12px 12px; border-radius: 15px; }
