@@ -8,7 +8,18 @@ export const roomItems = {
     eyebrow: 'ABOUT THIS ROOM',
     summary: '这里放着一些曾经震撼我、塑造我、陪伴我的东西。',
     focus: focus([-1.95, 2.5, 0.15], [-1.65, 2.25, -3.02]),
+    mobileFocus: focus([-1.65, 2.4, 1.05], [-1.65, 2.3, -3.02]),
     accent: '#7b5ca8',
+  },
+  bookshelf: {
+    id: 'bookshelf',
+    type: 'shelf',
+    label: '我的十本书',
+    eyebrow: 'READING SHELF',
+    summary: '先靠近书架，再选择一本书进入阅读。',
+    focus: focus([2.8, 1.35, 0.75], [2.8, 0.62, -2.35]),
+    mobileFocus: focus([2.8, 1.12, 1.35], [2.8, 0.62, -2.35]),
+    accent: '#9f7650',
   },
   computer: {
     id: 'computer',
@@ -188,6 +199,7 @@ export const books = Array.from({ length: 10 }, (_, index) => {
     color: bookColors[index],
     confirmed: Boolean(known),
     focus: focus([2.76, 1.32, 0.28], [2.76, 0.68, -2.35]),
+    mobileFocus: focus([2.8, 1.12, 1.35], [2.8, 0.62, -2.35]),
     accent: bookColors[index],
   }
 })

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { getRoomItem } from './data/roomContent'
+import { books, getRoomItem } from './data/roomContent'
 
 const RoomCanvas = lazy(() => import('./components/RoomCanvas'))
 const publicAsset = (path) => `${import.meta.env.BASE_URL}${path}`
@@ -1367,6 +1367,68 @@ function WhiteboardFocusTools({ onEdit, onClose, showcaseMode }) {
   )
 }
 
+function MobileWhiteboardReader({ content, onEdit, onClose, showcaseMode }) {
+  return (
+    <motion.section
+      className="mobile-whiteboard-reader"
+      initial={{ opacity: 0, y: 18, scale: .985 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 12, scale: .99 }}
+      transition={{ duration: .28, ease: [0.22, 1, 0.36, 1] }}
+      aria-label="白板高清阅读"
+    >
+      <header>
+        <div><span>ABOUT THIS ROOM</span><strong>白板近景</strong></div>
+        <button onClick={onClose} aria-label="返回房间">×</button>
+      </header>
+      <div className="mobile-whiteboard-content">
+        <div className="mobile-whiteboard-copy">
+          <h1>{content.title}</h1>
+          <strong>{content.lead}</strong>
+          <p>{content.story}</p>
+          <blockquote>“{content.motto}”</blockquote>
+          <div className="mobile-whiteboard-keywords">{content.keywords}</div>
+          <small>{content.signature}</small>
+        </div>
+        <figure><img src={content.logo} alt="白板个人标志" /></figure>
+      </div>
+      <footer>
+        <span>{showcaseMode ? '访客阅读模式' : '文字与图片会同步保存到这台设备'}</span>
+        {!showcaseMode && <button onClick={onEdit}>编辑白板</button>}
+        <button onClick={onClose}>返回房间</button>
+      </footer>
+    </motion.section>
+  )
+}
+
+function ShelfFocusPanel({ onSelectBook, onClose }) {
+  return (
+    <motion.section
+      className="shelf-focus-panel"
+      initial={{ opacity: 0, x: '-50%', y: 20 }}
+      animate={{ opacity: 1, x: '-50%', y: 0 }}
+      exit={{ opacity: 0, x: '-50%', y: 14 }}
+      transition={{ duration: .28, ease: [0.22, 1, 0.36, 1] }}
+      aria-label="书架近景"
+    >
+      <header>
+        <div><span>READING SHELF</span><strong>选择一本书</strong><small>点击书脊或下方封面进入阅读</small></div>
+        <button onClick={onClose}>返回房间</button>
+      </header>
+      <div className="shelf-book-strip">
+        {books.map((book, index) => (
+          <button key={book.id} onClick={() => onSelectBook(book.id)} aria-label={`打开${book.label}`}>
+            <i style={{ '--spine-color': book.spine?.base || book.color, '--spine-accent': book.spine?.accent || '#c7ac78' }}>
+              {book.cover ? <img src={book.cover} alt="" /> : <b>{String(index + 1).padStart(2, '0')}</b>}
+            </i>
+            <span>{book.label}</span>
+          </button>
+        ))}
+      </div>
+    </motion.section>
+  )
+}
+
 function SportIllustration({ kind }) {
   return kind === 'running' ? (
     <div className="sport-illustration running-art" aria-hidden="true">
@@ -1851,7 +1913,7 @@ function GameTheatre({ kind, onClose }) {
   )
 }
 
-function DetailPanel({ item, onClose, isEditMode, onToggleEdit, music, whiteboardContent, onWhiteboardChange, sportContent, onSportChange, showcaseMode }) {
+function DetailPanel({ item, onClose, onSelectBook, isEditMode, onToggleEdit, music, whiteboardContent, onWhiteboardChange, sportContent, onSportChange, showcaseMode }) {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -1870,7 +1932,9 @@ function DetailPanel({ item, onClose, isEditMode, onToggleEdit, music, whiteboar
   return (
     <AnimatePresence>
       {ready && (
-        item.type === 'book' ? (
+        item.id === 'bookshelf' ? (
+          <ShelfFocusPanel onSelectBook={onSelectBook} onClose={onClose} />
+        ) : item.type === 'book' ? (
           <BookReader item={item} isEditMode={isEditMode} onToggleEdit={onToggleEdit} onClose={onClose} showcaseMode={showcaseMode} />
         ) : item.albumKind ? (
           <PhotoAlbum albumKind={item.albumKind} title={item.albumTitle} isEditMode={isEditMode} onToggleEdit={onToggleEdit} onClose={onClose} showcaseMode={showcaseMode} />
@@ -1885,7 +1949,10 @@ function DetailPanel({ item, onClose, isEditMode, onToggleEdit, music, whiteboar
         ) : item.id === 'whiteboard' ? (
           isEditMode
             ? <WhiteboardStory content={whiteboardContent} onChange={onWhiteboardChange} onToggleEdit={onToggleEdit} onClose={onClose} />
-            : <WhiteboardFocusTools onEdit={onToggleEdit} onClose={onClose} showcaseMode={showcaseMode} />
+            : <>
+                <MobileWhiteboardReader content={whiteboardContent} onEdit={onToggleEdit} onClose={onClose} showcaseMode={showcaseMode} />
+                <WhiteboardFocusTools onEdit={onToggleEdit} onClose={onClose} showcaseMode={showcaseMode} />
+              </>
         ) : <motion.div className="detail-shell" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <motion.aside
             className="detail-panel"
@@ -1914,7 +1981,6 @@ function DetailPanel({ item, onClose, isEditMode, onToggleEdit, music, whiteboar
 export default function App() {
   const [selectedId, setSelectedId] = useState(() => typeof window.history.state?.roomOverlay === 'string' ? window.history.state.roomOverlay : null)
   const [isVisitorEntry] = useState(() => new URLSearchParams(window.location.search).get('view') === '1')
-  const [allowPersonalCopy] = useState(() => new URLSearchParams(window.location.search).get('copy') === '1')
   const [isShowcaseMode, setIsShowcaseMode] = useState(() => new URLSearchParams(window.location.search).get('view') === '1')
   const [isShowcasePreview, setIsShowcasePreview] = useState(false)
   const [isPersonalCopy, setIsPersonalCopy] = useState(false)
@@ -2105,7 +2171,7 @@ export default function App() {
           </button>
           <button onClick={enterShowcasePreview}>{isPersonalCopy ? '预览我的版本' : '预览展示'}</button>
         </>}
-        {isShowcaseMode && !isShowcasePreview && isVisitorEntry && allowPersonalCopy && (
+        {isShowcaseMode && !isShowcasePreview && isVisitorEntry && (
           <button className="create-copy-button" onClick={activatePersonalCopy}>{copyExists ? '继续编辑我的版本' : '创建我的版本'}</button>
         )}
         {isShowcasePreview && <button className="showcase-exit-button" onClick={leaveShowcasePreview}>退出展示</button>}
@@ -2116,7 +2182,7 @@ export default function App() {
         <span>{isShowcaseMode ? '拖动探索 · 点击物品 · 返回键回到房间' : isPersonalCopy ? '这是你的独立副本 · 修改仅保存在这台设备' : isEditMode ? '编辑内容会自动保存在本机' : '拖动查看 · 滚轮缩放 · 点击物品'}</span>
       </div>
 
-      {!isShowcaseMode && !isPersonalCopy && <div className="phase-badge">V2.3 · DUAL GAME THEATRE</div>}
+      {!isShowcaseMode && !isPersonalCopy && <div className="phase-badge">V2.4 · MOBILE FOCUS</div>}
       {isPersonalCopy && !isShowcaseMode && <div className="personal-copy-badge"><i />我的副本<span>仅保存在此设备</span></div>}
 
       <AnimatePresence>
@@ -2129,7 +2195,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {selectedItem && <DetailPanel key={selectedItem.id} item={selectedItem} music={music} whiteboardContent={whiteboardContent} onWhiteboardChange={setWhiteboardContent} sportContent={sportContent} onSportChange={setSportContent} isEditMode={isShowcaseMode ? false : isEditMode} onToggleEdit={() => setIsEditMode((value) => !value)} onClose={closeSelectedItem} showcaseMode={isShowcaseMode} />}
+      {selectedItem && <DetailPanel key={selectedItem.id} item={selectedItem} onSelectBook={selectItem} music={music} whiteboardContent={whiteboardContent} onWhiteboardChange={setWhiteboardContent} sportContent={sportContent} onSportChange={setSportContent} isEditMode={isShowcaseMode ? false : isEditMode} onToggleEdit={() => setIsEditMode((value) => !value)} onClose={closeSelectedItem} showcaseMode={isShowcaseMode} />}
     </main>
   )
 }

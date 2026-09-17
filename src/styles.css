@@ -606,6 +606,34 @@ button { font: inherit; }
 .whiteboard-focus-tools button { padding: 7px 11px; }
 .whiteboard-focus-tools button:hover, .whiteboard-logo-editor button:hover, .whiteboard-editor-actions button:hover { border-color: #9e87ac; background: #fff; }
 
+.mobile-whiteboard-reader { display: none; }
+
+.shelf-focus-panel {
+  position: fixed; z-index: 46; left: 50%; bottom: 24px; width: min(920px, calc(100vw - 48px));
+  padding: 13px 15px 14px; transform: translateX(-50%); pointer-events: auto; cursor: default;
+  border: 1px solid rgba(255,255,255,.82); border-radius: 20px; color: #423a32;
+  background: rgba(248,244,237,.94); box-shadow: 0 22px 70px rgba(45,36,29,.22); backdrop-filter: blur(18px);
+}
+.shelf-focus-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 3px 10px; }
+.shelf-focus-panel > header > div { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.shelf-focus-panel > header span { color: #9b754f; font: 600 8px/1 'DM Mono', monospace; letter-spacing: .15em; }
+.shelf-focus-panel > header strong { font-size: 13px; font-weight: 600; }
+.shelf-focus-panel > header small { color: #8c8175; font-size: 9px; }
+.shelf-focus-panel > header button, .mobile-whiteboard-reader button {
+  border: 1px solid #d7cfc3; border-radius: 999px; cursor: pointer; color: #675c52; background: rgba(255,255,255,.76); font-size: 9px;
+}
+.shelf-focus-panel > header button { flex: 0 0 auto; padding: 7px 11px; }
+.shelf-book-strip { display: flex; gap: 8px; overflow-x: auto; padding: 3px 2px 2px; scrollbar-width: thin; scrollbar-color: #cfc3b4 transparent; }
+.shelf-book-strip > button { flex: 1 0 68px; min-width: 0; padding: 0; border: 0; cursor: pointer; color: #5e554c; background: transparent; }
+.shelf-book-strip > button i {
+  position: relative; width: 100%; height: 66px; display: block; overflow: hidden; border: 1px solid rgba(69,54,42,.13); border-left: 5px solid var(--spine-accent);
+  border-radius: 4px 8px 8px 4px; background: var(--spine-color); box-shadow: 0 5px 13px rgba(64,47,34,.1); transition: transform .18s ease, box-shadow .18s ease;
+}
+.shelf-book-strip > button:hover i { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(64,47,34,.16); }
+.shelf-book-strip img { width: 100%; height: 100%; display: block; object-fit: cover; opacity: .9; }
+.shelf-book-strip b { height: 100%; display: grid; place-items: center; color: rgba(255,255,255,.72); font: 600 15px/1 'DM Mono', monospace; }
+.shelf-book-strip span { display: block; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; }
+
 .sport-shell { --sport-accent: #d56f42; --sport-deep: #553229; position: fixed; inset: 0; z-index: 47; display: grid; place-items: center; padding: 30px; cursor: default; background: rgba(30,27,24,.66); }
 .sport-shell.badminton { --sport-accent: #6d9c8f; --sport-deep: #243d3a; }
 .sport-journal { width: min(1260px, 96vw); height: min(800px, 93vh); overflow: hidden; border: 1px solid rgba(255,255,255,.7); border-radius: 23px; color: #302d29; background: #f3efe7; box-shadow: 0 38px 120px rgba(25,22,19,.4); contain: layout paint style; }
@@ -841,6 +869,50 @@ button { font: inherit; }
 
 @media (max-width: 720px) {
   body { cursor: default; }
+  .room-controls { flex-wrap: wrap; justify-content: flex-end; }
+  .room-controls .create-copy-button { order: -1; }
+  .shelf-focus-panel {
+    bottom: max(10px, env(safe-area-inset-bottom)); width: calc(100vw - 20px); padding: 10px 10px 11px; border-radius: 17px;
+    backdrop-filter: blur(12px);
+  }
+  .shelf-focus-panel > header { padding: 0 2px 8px; }
+  .shelf-focus-panel > header > div { display: grid; gap: 3px; }
+  .shelf-focus-panel > header span { font-size: 7px; }
+  .shelf-focus-panel > header strong { font-size: 12px; }
+  .shelf-focus-panel > header small { display: none; }
+  .shelf-focus-panel > header button { min-height: 34px; padding: 7px 10px; }
+  .shelf-book-strip { gap: 7px; padding-bottom: 2px; scrollbar-width: none; scroll-snap-type: x proximity; }
+  .shelf-book-strip::-webkit-scrollbar { display: none; }
+  .shelf-book-strip > button { flex: 0 0 58px; scroll-snap-align: start; }
+  .shelf-book-strip > button i { height: 76px; border-left-width: 4px; }
+  .shelf-book-strip span { margin-top: 5px; font-size: 8px; }
+  .mobile-whiteboard-reader {
+    position: fixed; z-index: 46; inset: max(68px, env(safe-area-inset-top)) 10px max(64px, env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; overflow: hidden; pointer-events: auto; cursor: default;
+    border: 1px solid rgba(255,255,255,.88); border-radius: 19px; color: #3d3731;
+    background: rgba(250,247,240,.97); box-shadow: 0 24px 80px rgba(40,33,27,.27);
+  }
+  .mobile-whiteboard-reader > header {
+    flex: 0 0 56px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px 0 17px;
+    border-bottom: 1px solid #ded6ca; background: rgba(255,255,255,.55);
+  }
+  .mobile-whiteboard-reader > header > div { display: grid; gap: 4px; }
+  .mobile-whiteboard-reader > header span { color: #76568b; font: 600 7px/1 'DM Mono', monospace; letter-spacing: .17em; }
+  .mobile-whiteboard-reader > header strong { font-size: 12px; font-weight: 600; }
+  .mobile-whiteboard-reader > header button { width: 34px; height: 34px; padding: 0; border: 0; background: #e9e2d8; font-size: 20px; }
+  .mobile-whiteboard-content { flex: 1 1 auto; overflow-y: auto; padding: 24px 20px 25px; }
+  .mobile-whiteboard-copy h1 { margin: 0; padding-left: 13px; border-left: 5px solid #76578b; color: #5b436a; font-size: clamp(27px, 8.2vw, 38px); line-height: 1.13; letter-spacing: -.05em; }
+  .mobile-whiteboard-copy > strong { display: block; margin-top: 22px; color: #36312d; font-size: 15px; line-height: 1.75; }
+  .mobile-whiteboard-copy p { margin: 15px 0 0; color: #6a625a; font-size: 13px; line-height: 1.9; }
+  .mobile-whiteboard-copy blockquote { margin: 22px 0 0; padding: 15px 16px; border: 1px solid #ded3c5; border-radius: 12px; color: #664978; background: #f0e9df; font-size: 14px; font-weight: 600; line-height: 1.75; }
+  .mobile-whiteboard-keywords { margin-top: 18px; color: #75695e; font-size: 10px; line-height: 1.8; }
+  .mobile-whiteboard-copy small { display: block; margin-top: 8px; color: #a27538; font: 700 9px/1.5 'DM Mono', monospace; letter-spacing: .1em; }
+  .mobile-whiteboard-content figure { width: 112px; margin: 24px 0 0 auto; padding: 7px; border: 1px solid #c7a86d; border-radius: 15px; background: #eadbb8; }
+  .mobile-whiteboard-content figure img { width: 100%; aspect-ratio: 1; display: block; border-radius: 10px; object-fit: cover; }
+  .mobile-whiteboard-reader > footer { flex: 0 0 58px; display: flex; align-items: center; justify-content: flex-end; gap: 7px; padding: 0 12px; border-top: 1px solid #ded6ca; }
+  .mobile-whiteboard-reader > footer span { min-width: 0; margin-right: auto; color: #93887c; font-size: 8px; line-height: 1.4; }
+  .mobile-whiteboard-reader > footer button { min-height: 34px; padding: 7px 10px; }
+  .whiteboard-focus-tools { display: none; }
   .intro-sequence > strong { font-size: 34px; }
   .room-header { left: max(16px, env(safe-area-inset-left)); top: max(16px, env(safe-area-inset-top)); transform: scale(.86); transform-origin: left top; }
   .room-mini-player { left: max(14px, env(safe-area-inset-left)); top: calc(max(16px, env(safe-area-inset-top)) + 48px); width: min(330px, calc(100vw - 28px)); padding: 11px 12px 12px; border-radius: 15px; }

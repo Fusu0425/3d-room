@@ -115,6 +115,7 @@ function CameraRig({ selectedId, resetToken }) {
     if (selectedId) {
       const item = getRoomItem(selectedId)
       if (!item) return
+      const itemFocus = compact && item.mobileFocus ? item.mobileFocus : item.focus
       if (!lastSelected.current) {
         returnView.current = {
           position: camera.position.clone(),
@@ -122,8 +123,8 @@ function CameraRig({ selectedId, resetToken }) {
         }
       }
       destination.current = {
-        position: new THREE.Vector3(...item.focus.camera),
-        target: new THREE.Vector3(...item.focus.target),
+        position: new THREE.Vector3(...itemFocus.camera),
+        target: new THREE.Vector3(...itemFocus.target),
       }
       useMotionQuality()
       moving.current = true
@@ -138,7 +139,7 @@ function CameraRig({ selectedId, resetToken }) {
       invalidate()
     }
     lastSelected.current = selectedId
-  }, [camera, invalidate, selectedId])
+  }, [camera, compact, invalidate, selectedId])
 
   useEffect(() => {
     if (!controls.current) return
@@ -179,8 +180,8 @@ function CameraRig({ selectedId, resetToken }) {
       dampingFactor={0.1}
       rotateSpeed={0.72}
       target={homeView.target}
-      minDistance={compact ? 5.5 : 3.0}
-      maxDistance={compact ? 30 : 13}
+      minDistance={selectedId ? (compact ? 1.15 : 2.2) : (compact ? 5.5 : 3.0)}
+      maxDistance={selectedId ? (compact ? 9 : 10) : (compact ? 30 : 13)}
       minPolarAngle={0.72}
       maxPolarAngle={1.45}
       minAzimuthAngle={-0.88}
@@ -408,9 +409,9 @@ function WhiteboardArtwork({ content }) {
 
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas')
-    const textureScale = 4 / 3
-    canvas.width = 2048
-    canvas.height = 1024
+    const textureScale = 2
+    canvas.width = 3072
+    canvas.height = 1536
     const context = canvas.getContext('2d')
     context.scale(textureScale, textureScale)
     context.imageSmoothingEnabled = true
@@ -1246,25 +1247,61 @@ function Plant({ position, scale = 1 }) {
 }
 
 function BookVolume({ book, width, height, hovered }) {
+  const [coverImage, setCoverImage] = useState(null)
+
+  useEffect(() => {
+    if (!book.cover) {
+      setCoverImage(null)
+      return undefined
+    }
+    let active = true
+    const image = new Image()
+    image.onload = () => active && setCoverImage(image)
+    image.src = book.cover
+    return () => { active = false }
+  }, [book.cover])
+
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas')
-    canvas.width = 512
-    canvas.height = 1536
+    canvas.width = 1024
+    canvas.height = 3072
     const context = canvas.getContext('2d')
+    context.scale(2, 2)
     const palette = book.spine || { base: book.color, ink: indexTextColor(book.color), accent: '#c7ac78' }
     context.fillStyle = palette.base
-    context.fillRect(0, 0, canvas.width, canvas.height)
+    context.fillRect(0, 0, 512, 1536)
+    if (coverImage) {
+      context.save()
+      context.globalAlpha = 0.24
+      context.drawImage(coverImage, 0, 0, 512, 1536)
+      context.restore()
+      const veil = context.createLinearGradient(0, 0, 512, 0)
+      veil.addColorStop(0, palette.base)
+      veil.addColorStop(0.18, `${palette.base}e8`)
+      veil.addColorStop(0.5, `${palette.base}b8`)
+      veil.addColorStop(0.82, `${palette.base}e8`)
+      veil.addColorStop(1, palette.base)
+      context.fillStyle = veil
+      context.fillRect(0, 0, 512, 1536)
+    }
     context.fillStyle = palette.accent
-    context.fillRect(0, 0, 34, canvas.height)
-    context.fillRect(76, 105, canvas.width - 152, 10)
-    context.fillRect(76, canvas.height - 118, canvas.width - 152, 7)
+    context.fillRect(0, 0, 34, 1536)
+    context.fillRect(76, 105, 360, 10)
+    context.fillRect(76, 1418, 360, 7)
     context.textAlign = 'center'
     context.textBaseline = 'middle'
     context.fillStyle = palette.ink
-    context.font = '700 68px "Microsoft YaHei", sans-serif'
+    context.font = '800 76px "Microsoft YaHei", sans-serif'
     const title = book.label.replace(/[《》]/g, '').slice(0, 10)
-    const titleStart = Math.max(245, 630 - title.length * 43)
-    Array.from(title).forEach((character, index) => context.fillText(character, canvas.width / 2 + 14, titleStart + index * 92))
+    const titleStart = Math.max(235, 620 - title.length * 45)
+    context.lineWidth = 8
+    context.strokeStyle = palette.base
+    Array.from(title).forEach((character, index) => {
+      const x = 270
+      const y = titleStart + index * 94
+      context.strokeText(character, x, y)
+      context.fillText(character, x, y)
+    })
     context.font = '500 30px "Microsoft YaHei", sans-serif'
     context.globalAlpha = 0.78
     const author = book.author.replace(/【.*?】/g, '').slice(0, 12)
@@ -1274,9 +1311,12 @@ function BookVolume({ book, width, height, hovered }) {
     context.fillText(book.confirmed ? book.eyebrow.replace('READING · ', 'BOOK ') : 'TO BE CHOSEN', canvas.width / 2 + 14, 165)
     const nextTexture = new THREE.CanvasTexture(canvas)
     nextTexture.colorSpace = THREE.SRGBColorSpace
-    nextTexture.anisotropy = 12
+    nextTexture.anisotropy = 16
+    nextTexture.generateMipmaps = true
+    nextTexture.minFilter = THREE.LinearMipmapLinearFilter
+    nextTexture.magFilter = THREE.LinearFilter
     return nextTexture
-  }, [book])
+  }, [book, coverImage])
 
   useEffect(() => () => texture.dispose(), [texture])
 
@@ -1298,22 +1338,25 @@ function indexTextColor(color) {
   return parsed.getHSL({}).l > 0.62 ? '#263239' : '#f1e6cf'
 }
 
-function Bookshelf({ onSelect }) {
+function Bookshelf({ onSelect, selectedId, compact }) {
+  const shelfFocused = selectedId === 'bookshelf'
+  const selectBook = (bookId) => onSelect(compact && !shelfFocused ? 'bookshelf' : bookId)
+
   return (
-    <group position={[2.8, 0, -2.35]}>
+    <Interactive id="bookshelf" label="靠近我的十本书" onSelect={onSelect} position={[2.8, 0, -2.35]} hitbox={[2.18, 1.5, 0.72]} labelOffset={[0, 1.48, 0.38]}>
       <Box args={[2.05, 0.92, 0.62]} position={[0, 0.49, 0]} color="#9b744c" roughness={0.68} radius={0.035} />
       <Box args={[1.8, 0.65, 0.46]} position={[0, 0.5, 0.04]} color="#4f3a29" roughness={0.72} radius={0.018} />
       {books.map((book, index) => {
         const height = 0.48 + (index % 3) * 0.055
         const width = 0.12 + (index % 2) * 0.025
         return (
-          <Interactive key={book.id} id={book.id} label={book.label} onSelect={onSelect} position={[-0.73 + index * 0.16, 0.22 + height / 2, 0.3]} hitbox={[width + 0.04, height + 0.04, 0.38]} labelOffset={[0, 0, 0.42]}>
+          <Interactive key={book.id} id={book.id} label={book.label} onSelect={selectBook} position={[-0.73 + index * 0.16, 0.22 + height / 2, 0.3]} hitbox={[Math.max(width + 0.04, compact ? 0.19 : 0), height + 0.06, 0.42]} labelOffset={[0, 0, 0.42]}>
             {(hovered) => <BookVolume book={book} width={width} height={height} hovered={hovered} />}
           </Interactive>
         )
       })}
       <Plant position={[0.63, 1.1, 0]} scale={0.75} />
-    </group>
+    </Interactive>
   )
 }
 
@@ -1361,7 +1404,7 @@ function TreadmillDisplay() {
 
 function Treadmill({ onSelect }) {
   return (
-    <Interactive id="running" label="跑步" onSelect={onSelect} position={[4.15, 0, -0.82]} rotation={[0, -0.04, 0]} hitbox={[1.3, 2.15, 2.7]} labelOffset={[0, 2.38, -0.7]}>
+    <Interactive id="running" label="跑步" onSelect={onSelect} position={[4.15, 0, -0.82]} rotation={[0, -0.04, 0]} hitbox={[0.98, 1.9, 2.55]} labelOffset={[0, 2.38, -0.7]}>
       {(hovered) => (
         <group scale={0.9}>
           <Box args={[1.3, 0.2, 2.82]} position={[0, 0.18, 0]} color="#282b2d" roughness={0.38} metalness={0.3} radius={0.13} />
@@ -1562,7 +1605,7 @@ function RoomShell() {
   )
 }
 
-const StaticRoom = memo(function StaticRoom({ onSelect }) {
+const StaticRoom = memo(function StaticRoom({ onSelect, selectedId, compact }) {
   return (
     <>
       <color attach="background" args={['#f4f1eb']} />
@@ -1592,7 +1635,7 @@ const StaticRoom = memo(function StaticRoom({ onSelect }) {
       <Desk onSelect={onSelect} />
       <Chair />
       <SuitcaseAndSnacks onSelect={onSelect} />
-      <Bookshelf onSelect={onSelect} />
+      <Bookshelf onSelect={onSelect} selectedId={selectedId} compact={compact} />
       <Treadmill onSelect={onSelect} />
       <BadmintonWall onSelect={onSelect} />
       <ShoesAndShuttles />
@@ -1602,10 +1645,10 @@ const StaticRoom = memo(function StaticRoom({ onSelect }) {
 
 const StableRecordPlayer = memo(RecordPlayer)
 
-function RoomScene({ selectedId, onSelect, resetToken, onReady, isMusicPlaying, whiteboardContent }) {
+function RoomScene({ selectedId, onSelect, resetToken, onReady, isMusicPlaying, whiteboardContent, compact }) {
   return (
     <>
-      <StaticRoom onSelect={onSelect} />
+      <StaticRoom onSelect={onSelect} selectedId={selectedId} compact={compact} />
       <Whiteboard onSelect={onSelect} content={whiteboardContent} />
       <StableRecordPlayer onSelect={onSelect} playing={isMusicPlaying && !selectedId} />
 
@@ -1642,7 +1685,7 @@ function RoomCanvas({ selectedId, onSelect, resetToken, onReady, isMusicPlaying,
         }}
         onPointerMissed={() => selectedId && onSelect(null)}
       >
-        <RoomScene selectedId={selectedId} onSelect={onSelect} resetToken={resetToken} onReady={onReady} isMusicPlaying={isMusicPlaying} whiteboardContent={whiteboardContent} />
+        <RoomScene selectedId={selectedId} onSelect={onSelect} resetToken={resetToken} onReady={onReady} isMusicPlaying={isMusicPlaying} whiteboardContent={whiteboardContent} compact={compact} />
       </Canvas>
       <div id="room-hover-label" className="room-hover-label" aria-hidden="true"><i /><span /></div>
     </div>
