@@ -941,6 +941,11 @@ button { font: inherit; }
   .room-controls { right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); max-width: calc(100vw - 24px); gap: 6px; }
   .room-controls button { min-height: 38px; padding: 8px 10px; font-size: 9px; }
   .room-controls button, .album-arrow, .sport-photo-stage > button { backdrop-filter: none; }
+  .game-theatre .theatre-backdrop,
+  .game-theatre .elden-sigil,
+  .game-theatre .grace-tree,
+  .game-theatre .expedition-number { filter: none !important; }
+  .gold-motes i:nth-child(n+19), .expedition-petals i:nth-child(n+23) { display: none; }
   .room-controls span { display: none; }
   .phase-badge { display: none; }
   .personal-copy-badge { left: max(14px, env(safe-area-inset-left)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + 50px); padding: 7px 10px; border-radius: 999px; background: rgba(248,243,234,.82); backdrop-filter: blur(10px); }
@@ -1075,6 +1080,17 @@ button { font: inherit; }
   .code-layout::-webkit-scrollbar, .manifesto-layout::-webkit-scrollbar, .manifesto-editor::-webkit-scrollbar,
   .whiteboard-fields::-webkit-scrollbar, .sport-layout::-webkit-scrollbar { display: none; }
 }
+
+html[data-room-quality="low"] .room-controls button,
+html[data-room-quality="low"] .room-mini-player,
+html[data-room-quality="low"] .mobile-whiteboard-focus-tools,
+html[data-room-quality="low"] .shelf-focus-panel { backdrop-filter: none !important; }
+html[data-room-quality="low"] .gold-motes i:nth-child(n+13),
+html[data-room-quality="low"] .expedition-petals i:nth-child(n+15) { display: none; }
+html[data-room-quality="low"] .elden-sigil > i,
+html[data-room-quality="low"] .grace-tree > b,
+html[data-room-quality="low"] .grace-tree > i,
+html[data-room-quality="low"] .expedition-disc { box-shadow: none; }
 
 @media (hover: none), (pointer: coarse) {
   .room-hover-label { display: none; }

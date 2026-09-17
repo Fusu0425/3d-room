@@ -1,4 +1,4 @@
-import { memo, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, RoundedBox, useGLTF, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
@@ -44,6 +44,15 @@ function useCompactViewport() {
   return compact
 }
 
+function getInitialMobileQuality() {
+  try {
+    if (window.sessionStorage.getItem('room-mobile-quality') === 'low') return 'low'
+  } catch { /* Performance preference can remain session-only. */ }
+  const cores = navigator.hardwareConcurrency || 4
+  const memory = navigator.deviceMemory
+  return cores <= 4 || (Number.isFinite(memory) && memory <= 4) ? 'low' : 'balanced'
+}
+
 function StudioEnvironment() {
   const { gl, scene } = useThree()
 
@@ -69,7 +78,7 @@ function StudioEnvironment() {
   return null
 }
 
-function CameraRig({ selectedId, resetToken }) {
+function CameraRig({ selectedId, resetToken, mobileQuality, onLowPerformance }) {
   const { camera, invalidate, setDpr, size } = useThree()
   const homeView = getHomeView(size.width, size.height)
   const compact = size.width <= 720
@@ -79,9 +88,13 @@ function CameraRig({ selectedId, resetToken }) {
   const returnView = useRef({ position: homeView.camera.clone(), target: homeView.target.clone() })
   const lastSelected = useRef(null)
   const moving = useRef(false)
+  const interacting = useRef(false)
+  const frameSample = useRef({ total: 0, slow: 0 })
 
-  const compactMotionDpr = Math.min(Math.max((window.devicePixelRatio || 1) * 0.5, 0.9), 1.15)
-  const compactIdleDpr = Math.min(Math.max(window.devicePixelRatio || 1, 1.5), 2)
+  const compactMotionDpr = mobileQuality === 'low' ? 0.78 : 1
+  const compactIdleDpr = mobileQuality === 'low'
+    ? Math.min(window.devicePixelRatio || 1, 1.15)
+    : Math.min(window.devicePixelRatio || 1, 1.55)
 
   const useMotionQuality = () => {
     window.clearTimeout(qualityTimer.current)
@@ -97,6 +110,12 @@ function CameraRig({ selectedId, resetToken }) {
   }
 
   useEffect(() => () => window.clearTimeout(qualityTimer.current), [])
+
+  useEffect(() => {
+    if (!compact) return
+    setDpr(compactIdleDpr)
+    invalidate()
+  }, [compact, compactIdleDpr, invalidate, setDpr])
 
   useEffect(() => {
     camera.fov = homeView.fov
@@ -151,6 +170,14 @@ function CameraRig({ selectedId, resetToken }) {
   }, [homeView, invalidate, resetToken])
 
   useFrame((_, delta) => {
+    if (compact && mobileQuality !== 'low' && (moving.current || interacting.current) && delta > 0 && delta < 0.2) {
+      frameSample.current.total += 1
+      if (delta > 1 / 27) frameSample.current.slow += 1
+      if (frameSample.current.total >= 18) {
+        if (frameSample.current.slow >= 7) onLowPerformance?.()
+        frameSample.current = { total: 0, slow: 0 }
+      }
+    }
     if (!controls.current || !moving.current) return
     controls.current.enabled = false
     const alpha = 1 - Math.exp(-delta * 7.2)
@@ -188,8 +215,15 @@ function CameraRig({ selectedId, resetToken }) {
       maxAzimuthAngle={0.88}
       enablePan={false}
       touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE }}
-      onStart={useMotionQuality}
-      onEnd={restoreQuality}
+      onStart={() => {
+        interacting.current = true
+        frameSample.current = { total: 0, slow: 0 }
+        useMotionQuality()
+      }}
+      onEnd={() => {
+        interacting.current = false
+        restoreQuality()
+      }}
     />
   )
 }
@@ -1618,7 +1652,7 @@ function RoomShell() {
   )
 }
 
-const StaticRoom = memo(function StaticRoom({ onSelect, selectedId, compact }) {
+const StaticRoom = memo(function StaticRoom({ onSelect, selectedId, compact, lowPower }) {
   return (
     <>
       <color attach="background" args={['#f4f1eb']} />
@@ -1637,9 +1671,11 @@ const StaticRoom = memo(function StaticRoom({ onSelect, selectedId, compact }) {
         shadow-camera-bottom={-5}
         shadow-bias={-0.00015}
       />
-      <spotLight position={[-4.7, 5.4, 3.6]} angle={0.52} penumbra={0.94} intensity={0.62} color="#ffdcb1" />
-      <rectAreaLight position={[1.5, 4.2, 3.8]} rotation={[-0.72, 0.15, 0]} width={5.5} height={3.2} intensity={0.82} color="#fffdf7" />
-      <rectAreaLight position={[-4.5, 2.8, 0.8]} rotation={[-0.3, -1.0, 0]} width={2.8} height={2.4} intensity={0.42} color="#f3f8ff" />
+      {!lowPower && <>
+        <spotLight position={[-4.7, 5.4, 3.6]} angle={0.52} penumbra={0.94} intensity={0.62} color="#ffdcb1" />
+        <rectAreaLight position={[1.5, 4.2, 3.8]} rotation={[-0.72, 0.15, 0]} width={5.5} height={3.2} intensity={0.82} color="#fffdf7" />
+        <rectAreaLight position={[-4.5, 2.8, 0.8]} rotation={[-0.3, -1.0, 0]} width={2.8} height={2.4} intensity={0.42} color="#f3f8ff" />
+      </>}
 
       <RoomShell />
       <TravelWall onSelect={onSelect} />
@@ -1658,14 +1694,15 @@ const StaticRoom = memo(function StaticRoom({ onSelect, selectedId, compact }) {
 
 const StableRecordPlayer = memo(RecordPlayer)
 
-function RoomScene({ selectedId, onSelect, resetToken, onReady, isMusicPlaying, whiteboardContent, compact }) {
+function RoomScene({ selectedId, onSelect, resetToken, onReady, isMusicPlaying, whiteboardContent, compact, mobileQuality, onLowPerformance }) {
+  const lowPower = compact && mobileQuality === 'low'
   return (
     <>
-      <StaticRoom onSelect={onSelect} selectedId={selectedId} compact={compact} />
+      <StaticRoom onSelect={onSelect} selectedId={selectedId} compact={compact} lowPower={lowPower} />
       <Whiteboard onSelect={onSelect} content={whiteboardContent} compact={compact} />
       <StableRecordPlayer onSelect={onSelect} playing={isMusicPlaying && !selectedId} />
 
-      <CameraRig selectedId={selectedId} resetToken={resetToken} />
+      <CameraRig selectedId={selectedId} resetToken={resetToken} mobileQuality={mobileQuality} onLowPerformance={onLowPerformance} />
       <SceneReady onReady={onReady} />
     </>
   )
@@ -1673,22 +1710,34 @@ function RoomScene({ selectedId, onSelect, resetToken, onReady, isMusicPlaying, 
 
 function RoomCanvas({ selectedId, onSelect, resetToken, onReady, isMusicPlaying, whiteboardContent }) {
   const compact = useCompactViewport()
+  const [mobileQuality, setMobileQuality] = useState(getInitialMobileQuality)
+  const lowPower = compact && mobileQuality === 'low'
   const initialHomeView = getHomeView(window.innerWidth, window.innerHeight)
   const glConfig = useMemo(() => ({
-    antialias: true,
+    antialias: !lowPower,
     alpha: false,
     toneMapping: THREE.ACESFilmicToneMapping,
     toneMappingExposure: 1.08,
     powerPreference: 'high-performance',
     stencil: false,
-  }), [])
+  }), [lowPower])
+
+  const enableLowPowerMode = useCallback(() => {
+    setMobileQuality('low')
+    try { window.sessionStorage.setItem('room-mobile-quality', 'low') } catch { /* Keep the downgrade for this render. */ }
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.dataset.roomQuality = lowPower ? 'low' : 'balanced'
+    return () => { delete document.documentElement.dataset.roomQuality }
+  }, [lowPower])
 
   return (
     <div className="room-canvas-shell">
       <Canvas
         frameloop="demand"
         shadows={compact ? false : 'soft'}
-        dpr={compact ? [0.9, 2] : [0.68, 1]}
+        dpr={compact ? (lowPower ? [0.72, 1.15] : [0.82, 1.55]) : [0.68, 1]}
         performance={{ min: 0.75, max: 1, debounce: 180 }}
         camera={{ position: initialHomeView.camera.toArray(), fov: initialHomeView.fov, near: 0.1, far: 60 }}
         gl={glConfig}
@@ -1698,7 +1747,7 @@ function RoomCanvas({ selectedId, onSelect, resetToken, onReady, isMusicPlaying,
         }}
         onPointerMissed={() => selectedId && onSelect(null)}
       >
-        <RoomScene selectedId={selectedId} onSelect={onSelect} resetToken={resetToken} onReady={onReady} isMusicPlaying={isMusicPlaying} whiteboardContent={whiteboardContent} compact={compact} />
+        <RoomScene selectedId={selectedId} onSelect={onSelect} resetToken={resetToken} onReady={onReady} isMusicPlaying={isMusicPlaying} whiteboardContent={whiteboardContent} compact={compact} mobileQuality={mobileQuality} onLowPerformance={enableLowPowerMode} />
       </Canvas>
       <div id="room-hover-label" className="room-hover-label" aria-hidden="true"><i /><span /></div>
     </div>
