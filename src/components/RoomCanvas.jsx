@@ -48,9 +48,11 @@ function getInitialMobileQuality() {
   try {
     if (window.sessionStorage.getItem('room-mobile-quality') === 'low') return 'low'
   } catch { /* Performance preference can remain session-only. */ }
+  const userAgent = navigator.userAgent || ''
+  const constrainedWebView = /MicroMessenger|HuaweiBrowser|HUAWEI|HarmonyOS|HMSCore|TLR-[A-Z0-9]+/i.test(userAgent)
   const cores = navigator.hardwareConcurrency || 4
   const memory = navigator.deviceMemory
-  return cores <= 4 || (Number.isFinite(memory) && memory <= 4) ? 'low' : 'balanced'
+  return constrainedWebView || cores <= 4 || (Number.isFinite(memory) && memory <= 4) ? 'low' : 'balanced'
 }
 
 function StudioEnvironment() {
@@ -1656,7 +1658,7 @@ const StaticRoom = memo(function StaticRoom({ onSelect, selectedId, compact, low
   return (
     <>
       <color attach="background" args={['#f4f1eb']} />
-      <StudioEnvironment />
+      {!lowPower && <StudioEnvironment />}
       <ambientLight intensity={0.38} color="#fffaf2" />
       <hemisphereLight intensity={0.46} color="#fffdf8" groundColor="#b9aa9d" />
       <directionalLight
